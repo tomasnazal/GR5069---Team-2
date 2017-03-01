@@ -1,0 +1,16 @@
+GR5069
+Project Description
+Team 2 
+
+Creating content recommendations for streaming platforms based on IMBD users
+Our team will try to generate recommendations on possible successful movie templates for a potential content creator, most likely an online streaming platform.
+
+Online streaming platforms are taking an increasingly large portion of content consumers around the world. An important part of these platform strategies is data-led selection and creation of content; famously, the Netflix decision to purchase ‘House of Cards’ was done considering that both David Fincher and Kevin Spacey movies did well with their viewers. This example has led other online content creators (Amazon, Vimeo, soon enough Google, etc.) to look for insights on their user data regarding what to offer.
+
+We propose using an available dataset on 5043 movies, scraped from IMBD by Chuan Sun and available on Kaggle. The dataset has 28 variables and 2399 unique director names, together with thousands of actor’s and actresses’ names. Within the variables there is information on Facebook likes of actors, gross revenue, cost of production, plot keywords, movie genre, IMBD review scores, etc.
+
+The central idea is to categorize movies by their critic score, and revenue potential (ratio between production cost and box office revenue), and identify what are the characteristics that make a movie more likely to fall into each category. Through the use of regression, clustering, principal component analysis, and random forests we want to understand if there is a significant difference in what distinguishes, say, a low critic score movie with high revenue, and a highly-praised movie with high revenue. 
+
+The final product would be a prescriptive account of our findings such that it will offer potential producers and executives guides for content selection and creation. This will include a set of ‘templates’ of factors and combination of factors (actors, genre, directors, plot points) that could potentially create a highly profitable film, or perhaps just a highly-rated film (in case a production house wanted to position itself as a quality-first endeavor). At the same time, there will be a proscriptive section that will account for what is not advisable (given the data) to produce because of low revenue, low ratings, or both.
+
+The project will also shed light on the subject of taste as a social phenomenon.     
