@@ -1,1 +1,33 @@
 
+library(randomForest)
+library(caret)
+
+inTrain <- createDataPartition (imdb_num[,'imdb_score'], p=0.8, list= FALSE )
+training <- imdb_num[inTrain, ]
+testing <- imdb_num[-inTrain, ]
+
+imdb <- filter(imdb, title_year > 1995)
+imdb <- imdb[, -18]
+
+nums <- sapply(imdb, is.numeric)
+
+imdb_num <- imdb[ ,nums]
+imdb_cate <- imdb[,!nums]
+i <- na.omit(imdb_num)
+
+dim(imdb_num)
+
+training <- na.omit(i[inTrain, ])
+testing <- na.omit(i[-inTrain, ])
+
+table(is.na(training))
+
+score.rf <- randomForest(imdb_score ~., data = training,
+                          mtry = 6, importance = TRUE)
+importance(score.rf)
+varImpPlot(score.rf)
+
+gross.rf <- randomForest(gross ~. ,data = training,
+                         mtry = 6, importance = TRUE)
+importance(gross.rf)
+varImpPlot(gross.rf)
