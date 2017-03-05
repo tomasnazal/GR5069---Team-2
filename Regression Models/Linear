@@ -1,1 +1,15 @@
+imdb <-read.csv("/Users/elka/Desktop/R/movie_metadata.csv", header = T)
 
+library(caret)
+inTrain <- createDataPartition (imdb_num[,'imdb_score'], p=0.8, list= FALSE )
+training <- imdb_num[inTrain, ]
+testing <- imdb_num[-inTrain, ]
+
+score.linear <- lm(imdb_score ~. , data = training)
+summary(score.linear)
+
+pred.linear <- predict(movie.linear, testing)
+sum((testing$imdb_score - pred.linear)^2, na.rm = T)
+
+gross.linear <- lm(gross~., data = i)
+summary(gross.linear)
