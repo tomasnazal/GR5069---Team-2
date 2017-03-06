@@ -8,7 +8,7 @@ imdb$ROI <- round((imdb$gross / imdb$budget), 2)
 imdb <- filter(imdb, title_year > 1995)
 
 
-#The following code creates a factor variabel with 5 levels:
+#The following code creates a factor variable with 5 levels:
 #the first letter, H denotates above 80th percentile of ROI,
 #L denotates below 20th percentile of ROI.
 #the second letter, H denotates above 70th percentile of IMDB score,
