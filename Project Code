@@ -24,4 +24,6 @@ imdb$category <- as.factor(ifelse(imdb$ROI >= quantile(imdb$ROI, .8, na.rm = T) 
                                  imdb$imdb_score >= quantile(imdb$imdb_score, .7, na.rm = T), "LH",
                         ifelse(imdb$ROI <= quantile(imdb$ROI, .2, na.rm = T) &
                                  imdb$imdb_score <= quantile(imdb$imdb_score, .3, na.rm = T), "LL", "MID")))))
-table(imdb$category)
+
+#remove Â from the end of the move titles
+imdb$movie_title <- sub("Â", "", imdb$movie_title)
