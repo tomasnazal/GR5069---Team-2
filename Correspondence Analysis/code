@@ -1,1 +1,77 @@
+```{r}
+rm(list=ls()) #Clear the enviornment
+```
 
+## Upload the data:
+```{r}
+# Upload Data set
+library(readr)
+imdb <- read_csv("C:/Users/sooyo/Desktop/movie_metadata.csv")
+
+imdb <- na.omit(imdb)
+```
+
+#Code for data wrangling and others
+
+```{r}
+#Libraries Used
+library(dplyr)
+
+#CODE
+imdb$ROI <- round((imdb$gross / imdb$budget), 2)
+imdb <- filter(imdb, title_year > 1995)
+
+
+#The following code creates a factor variable with 5 levels:
+#the first letter, H denotates above 80th percentile of ROI,
+#L denotates below 20th percentile of ROI.
+#the second letter, H denotates above 70th percentile of IMDB score,
+#L denotates below 30th percentile of IMDB score.
+#Hence 5 levels: HH, HL, LH, LL, and MID for all else in between categories
+
+
+imdb$category <- as.factor(ifelse(imdb$ROI >= quantile(imdb$ROI, .8, na.rm = T) &
+                          imdb$imdb_score >= quantile(imdb$imdb_score, .7, na.rm = T), "HH",
+                        ifelse(imdb$ROI >= quantile(imdb$ROI, .8, na.rm = T) &
+                                 imdb$imdb_score <= quantile(imdb$imdb_score, .3, na.rm = T), "HL",
+                        ifelse(imdb$ROI <= quantile(imdb$ROI, .2, na.rm = T) &
+                                 imdb$imdb_score >= quantile(imdb$imdb_score, .7, na.rm = T), "LH",
+                        ifelse(imdb$ROI <= quantile(imdb$ROI, .2, na.rm = T) &
+                                 imdb$imdb_score <= quantile(imdb$imdb_score, .3, na.rm = T), "LL", "MID")))))
+table(imdb$category)
+```
+
+
+## Correspondence analysis:
+```{r}
+## Correspondence analysis provides a graphic method of exploring the relationship between variables in a contingency table. 
+
+# The cross-tabulation of categorical data is perhaps the most commonly encountered and simple for of analysis in research
+
+#Libraries Used
+library(ca)
+library("FactoMineR")
+library("factoextra")
+
+# Correspondence analysis I
+mytable1 <- with(imdb, table(actor_1_name, ROI))
+prop.table(mytable1, 1) # row percentages
+prop.table (mytable1, 2) # column percentages
+fit1 <- ca(mytable1)
+print(fit1) # basic results
+summary(fit1) # extended results
+plot(fit1) # symmetric map
+plot(fit1, mass = TRUE, contrib = "absolute", map =
+  	"rowgreen", arrows = c(FALSE, TRUE)) # asymmetric map
+
+# Correspondence analysis II
+mytable2 <- with(imdb, table(actor_1_name, category))
+prop.table(mytable2, 1) # row percentages
+prop.table (mytable2, 2) # column percentages
+fit2 <- ca(mytable2)
+print(fit2) # basic results
+summary(fit2) # extended results
+plot(fit2) # symmetric map
+plot(fit2, mass = TRUE, contrib = "absolute", map =
+  	"rowgreen", arrows = c(FALSE, TRUE)) # asymmetric map
+```
