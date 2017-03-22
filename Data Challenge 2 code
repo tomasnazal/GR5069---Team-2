@@ -1,0 +1,54 @@
+stopifnot(require(randomForest))
+stopifnot(require(stats))
+stopifnot(require(ggplot2))
+stopifnot(require(dplyr))
+stopifnot(require(stargazer))
+stopifnot(require(gridExtra))
+stopifnot(require(grid))
+
+
+d <- load("ConfrontationsData_170209.csv")
+
+#dummy variable for states with high cartel activity (more than 1000 murders presumably connected to cartel conflicts from 2006-2012. Source: International Crisis Group (2013))
+dq1 <- d
+dq1$high_cartel_activity <- ifelse(dq1$state.abbr == "BC" |
+                                     dq1$state.abbr == "SON" |
+                                     dq1$state.abbr == "CHIH" |
+                                     dq1$state.abbr == "COAH" |
+                                     dq1$state.abbr == "NL" |
+                                     dq1$state.abbr == "TAMPS" |
+                                     dq1$state.abbr == "SIN" |
+                                     dq1$state.abbr == "DGO" |
+                                     dq1$state.abbr == "JAL" |
+                                     dq1$state.abbr == "MICH" |
+                                     dq1$state.abbr == "GRO", 1, 0)
+
+table(dq1$high_cartel_activity)
+
+#dummy for cases where civilians wehere either killed or wounded 
+dq1$civilian_affected <- ifelse((dq1$civilian.dead + dq1$civilian.wounded) > 0, 1, 0)
+
+dq2 <- d
+
+
+#dummy for if there were any detentions 
+dq2$detention_incidence <- ifelse(dq2$detained > 0, 1, 0)
+
+
+#creates "incidence" variable for each body including civilian and organized crime
+for(i in c("military", "navy", "federal.police",
+           "afi", "state.police", "ministerial.police",
+           "municipal.police", "public.prosecutor",
+           "organized.crime", "civilian")) {
+  
+  dq2[[i]] <- ifelse(dq2[[paste(i, "dead", sep = ".")]] > 0 |
+                       dq2[[paste(i, "wounded", sep = ".")]] > 0, 1, 0)
+  
+}
+
+
+#logit regression
+logitq2 <- glm(detention_incidence ~ military + navy + federal.police +
+                 afi + state.police + ministerial.police + municipal.police +
+                 long.guns.seized + small.arms.seized + organized.crime + civilian,
+               data = dq2, family = binomial(link = "logit"))
