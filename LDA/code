@@ -1,1 +1,146 @@
+```{r}
+library(dplyr)
+library(RTextTools)
+library(topicmodels)
+library(tm)
+library(tidytext)
+library(wordcloud)
+```
+
+
+```{r}
+#Initial Data Import and Wrangling
+imdb<- read.csv("C:/Datasets/IMBD/movie_metadata.csv", stringsAsFactors = F)
+imdb$ROI <- round((imdb$gross / imdb$budget), 2)
+imdb <- filter(imdb, title_year > 1995)
+
+
+#The following code creates a factor variabel with 5 levels:
+#the first letter, H denotates above 80th percentile of ROI,
+#L denotates below 20th percentile of ROI.
+#the second letter, H denotates above 70th percentile of IMDB score,
+#L denotates below 30th percentile of IMDB score.
+#Hence 5 levels: HH, HL, LH, LL, and MID for all else in between categories
+  
+
+imdb$category <- as.factor(ifelse(imdb$ROI >= quantile(imdb$ROI, .8, na.rm = T) &
+                          imdb$imdb_score >= quantile(imdb$imdb_score, .7, na.rm = T), "HH",
+                        ifelse(imdb$ROI >= quantile(imdb$ROI, .8, na.rm = T) &
+                                 imdb$imdb_score <= quantile(imdb$imdb_score, .3, na.rm = T), "HL",
+                        ifelse(imdb$ROI <= quantile(imdb$ROI, .2, na.rm = T) &
+                                 imdb$imdb_score >= quantile(imdb$imdb_score, .7, na.rm = T), "LH",
+                        ifelse(imdb$ROI <= quantile(imdb$ROI, .2, na.rm = T) &
+                                 imdb$imdb_score <= quantile(imdb$imdb_score, .3, na.rm = T), "LL", "MID")))))
+
+
+imdb$movie_title <- sub("Â", "", imdb$movie_title) #remove Â from the end of the move titles
+```
+```{r}
+#LDA
+
+
+
+##data wrangling to create corpuses
+imdb_txt <- imdb[, c("director_name", "actor_1_name", "plot_keywords", "genres", "category")]
+imdb_txt$director_name <- gsub(" ", "_", imdb_txt$director_name)
+imdb_txt$actor_1_name <- gsub(" ", "_", imdb_txt$actor_1_name)
+imdb_txt$plot_keywords <- gsub(" ", "_", imdb_txt$plot_keywords)
+imdb_txt$plot_keywords <- gsub("\\|", " ", imdb_txt$plot_keywords)
+imdb_txt$genres <- gsub("\\|", "_", imdb_txt$genres)
+imdb_txt$genres <- gsub("^([^_]*_[^_]*)_.*$", "\\1", imdb_txt$genres)
+
+
+#imdb_txt$genres <- gsub("_.*", "", imdb_txt$genres) #optional, keeps only the first genre
+
+###Keeping genre out of it for now for overwhelming the themes
+
+##LDA hh
+corpus_hh <- imdb_txt %>% filter(category == "HH")
+corpus_hh_text <- paste(corpus_hh$director_name, corpus_hh$actor_1_name,
+                   corpus_hh$plot_keywords, collapse = " ")
+corpus_hh_text <- strsplit(corpus_hh_text, " ")
+corpus_hh <- as.data.frame(table(corpus_hh_text))
+corpus_hh_m <- as.matrix(corpus_hh$Freq)
+rownames(corpus_hh_m) <- corpus_hh$corpus_hh
+corpus_hh_m <- t(corpus_hh_m)
+
+
+lda_hh <- LDA(corpus_hh_m, 3)
+
+terms_lda_hh <- terms(lda_hh, 20)
+
+##LDA hl
+corpus_hl <- imdb_txt %>% filter(category == "HL")
+corpus_hl_text <- paste(corpus_hl$director_name, corpus_hl$actor_1_name,
+                   corpus_hl$plot_keywords, collapse = " ")
+corpus_hl_text <- strsplit(corpus_hl_text, " ")
+corpus_hl <- as.data.frame(table(corpus_hl_text))
+corpus_hl <- corpus_hl[-1,]
+corpus_hl_m <- as.matrix(corpus_hl$Freq)
+rownames(corpus_hl_m) <- corpus_hl$corpus_hl
+corpus_hl_m <- t(corpus_hl_m)
+
+
+lda_hl <- LDA(corpus_hl_m, 3)
+
+terms_lda_hl <- terms(lda_hl, 20)
+
+
+##LDA lh
+corpus_lh <- imdb_txt %>% filter(category == "LH")
+corpus_lh_text <- paste(corpus_lh$director_name, corpus_lh$actor_1_name,
+                   corpus_lh$plot_keywords, collapse = " ")
+corpus_lh_text <- strsplit(corpus_lh_text, " ")
+corpus_lh <- as.data.frame(table(corpus_lh_text))
+corpus_lh <- corpus_lh[-1,]
+corpus_lh_m <- as.matrix(corpus_lh$Freq)
+rownames(corpus_lh_m) <- corpus_lh$corpus_lh
+corpus_lh_m <- t(corpus_lh_m)
+
+
+lda_lh <- LDA(corpus_lh_m, 3)
+
+terms_lda_lh <- terms(lda_lh, 20)
+
+##LDA ll
+corpus_ll <- imdb_txt %>% filter(category == "LL")
+corpus_ll_text <- paste(corpus_ll$director_name, corpus_ll$actor_1_name,
+                   corpus_ll$plot_keywords, collapse = " ")
+corpus_ll_text <- strsplit(corpus_ll_text, " ")
+corpus_ll <- as.data.frame(table(corpus_ll_text))
+corpus_ll <- corpus_ll[-1,]
+corpus_ll_m <- as.matrix(corpus_ll$Freq)
+rownames(corpus_ll_m) <- corpus_ll$corpus_ll
+corpus_ll_m <- t(corpus_ll_m)
+
+
+lda_ll <- LDA(corpus_ll_m, 3)
+
+terms_lda_ll <- terms(lda_ll, 20)
+
+
+#checking what is this punctuation in title thing
+imdb[grep("punctuation", imdb$plot_keywords), 17]
+
+
+
+#Wordclouds
+
+##HH
+wordcloud(words = corpus_hh$corpus_hh_text, freq = corpus_hh$Freq,
+          max.words = 100, min.freq = 4, random.order=FALSE, rot.per=0, 
+          colors=brewer.pal(8, "Dark2"), scale = c(4, .001))
+
+wordcloud(words = corpus_hl$corpus_hl_text, freq = corpus_hl$Freq,
+          max.words = 100, min.freq = 3, random.order=FALSE, rot.per=0, 
+          colors=brewer.pal(8, "Dark2"), scale = c(3, .001))
+
+wordcloud(words = corpus_lh$corpus_lh_text, freq = corpus_lh$Freq,
+          max.words = 100, min.freq = 2, random.order=FALSE, rot.per=0, 
+          colors=brewer.pal(8, "Dark2"), scale = c(3, .001))
+
+wordcloud(words = corpus_ll$corpus_ll_text, freq = corpus_ll$Freq,
+          max.words = 100, min.freq = 3, random.order=FALSE, rot.per=0, 
+          colors=brewer.pal(8, "Dark2"), scale = c(3, .001))
+```
 
