@@ -8,40 +8,28 @@ library(wordcloud)
 ```
 
 
-```{r}
-#Initial Data Import and Wrangling
-imdb<- read.csv("C:/Datasets/IMBD/movie_metadata.csv", stringsAsFactors = F)
-imdb$ROI <- round((imdb$gross / imdb$budget), 2)
-imdb <- filter(imdb, title_year > 1995)
-
-
-#The following code creates a factor variabel with 5 levels:
-#the first letter, H denotates above 80th percentile of ROI,
-#L denotates below 20th percentile of ROI.
-#the second letter, H denotates above 70th percentile of IMDB score,
-#L denotates below 30th percentile of IMDB score.
-#Hence 5 levels: HH, HL, LH, LL, and MID for all else in between categories
-  
-
-imdb$category <- as.factor(ifelse(imdb$ROI >= quantile(imdb$ROI, .8, na.rm = T) &
-                          imdb$imdb_score >= quantile(imdb$imdb_score, .7, na.rm = T), "HH",
-                        ifelse(imdb$ROI >= quantile(imdb$ROI, .8, na.rm = T) &
-                                 imdb$imdb_score <= quantile(imdb$imdb_score, .3, na.rm = T), "HL",
-                        ifelse(imdb$ROI <= quantile(imdb$ROI, .2, na.rm = T) &
-                                 imdb$imdb_score >= quantile(imdb$imdb_score, .7, na.rm = T), "LH",
-                        ifelse(imdb$ROI <= quantile(imdb$ROI, .2, na.rm = T) &
-                                 imdb$imdb_score <= quantile(imdb$imdb_score, .3, na.rm = T), "LL", "MID")))))
-
-
-imdb$movie_title <- sub("Â", "", imdb$movie_title) #remove Â from the end of the move titles
-```
-```{r}
 #LDA
 
+imdb_lda<- read.csv("C:/Datasets/IMBD/movie_metadata.csv", stringsAsFactors = F)
+imdb_lda$ROI <- round((imdb_lda$gross / imdb_lda$budget), 2)
+imdb_lda <- filter(imdb_lda, title_year > 1995)
+
+
+imdb_lda$category <- as.factor(ifelse(imdb_lda$ROI >= quantile(imdb_lda$ROI, .8, na.rm = T) &
+                          imdb_lda$imdb_score >= quantile(imdb_lda$imdb_score, .7, na.rm = T), "HH",
+                        ifelse(imdb_lda$ROI >= quantile(imdb_lda$ROI, .8, na.rm = T) &
+                                 imdb_lda$imdb_score <= quantile(imdb_lda$imdb_score, .3, na.rm = T), "HL",
+                        ifelse(imdb_lda$ROI <= quantile(imdb_lda$ROI, .2, na.rm = T) &
+                                 imdb_lda$imdb_score >= quantile(imdb_lda$imdb_score, .7, na.rm = T), "LH",
+                        ifelse(imdb_lda$ROI <= quantile(imdb_lda$ROI, .2, na.rm = T) &
+                                 imdb_lda$imdb_score <= quantile(imdb_lda$imdb_score, .3, na.rm = T), "LL", "MID")))))
+
+
+imdb_lda$movie_title <- sub("Â", "", imdb_lda$movie_title) #remove Â from the end of the move titles
 
 
 ##data wrangling to create corpuses
-imdb_txt <- imdb[, c("director_name", "actor_1_name", "plot_keywords", "genres", "category")]
+imdb_txt <- imdb_lda[, c("director_name", "actor_1_name", "plot_keywords", "genres", "category")]
 imdb_txt$director_name <- gsub(" ", "_", imdb_txt$director_name)
 imdb_txt$actor_1_name <- gsub(" ", "_", imdb_txt$actor_1_name)
 imdb_txt$plot_keywords <- gsub(" ", "_", imdb_txt$plot_keywords)
@@ -50,10 +38,9 @@ imdb_txt$genres <- gsub("\\|", "_", imdb_txt$genres)
 imdb_txt$genres <- gsub("^([^_]*_[^_]*)_.*$", "\\1", imdb_txt$genres)
 
 
-#imdb_txt$genres <- gsub("_.*", "", imdb_txt$genres) #optional, keeps only the first genre
+imdb_txt$genres <- gsub("_.*", "", imdb_txt$genres) #optional, keeps only the first genre
 
-###Keeping genre out of it for now for overwhelming the themes
-
+###Keeping genre out of it for now for overwhelming the themes 
 ##LDA hh
 corpus_hh <- imdb_txt %>% filter(category == "HH")
 corpus_hh_text <- paste(corpus_hh$director_name, corpus_hh$actor_1_name,
@@ -120,7 +107,7 @@ terms_lda_ll <- terms(lda_ll, 20)
 
 
 #checking what is this punctuation in title thing
-imdb[grep("punctuation", imdb$plot_keywords), 17]
+imdb_lda[grep("punctuation", imdb_lda$plot_keywords), 17]
 
 
 
@@ -143,4 +130,3 @@ wordcloud(words = corpus_ll$corpus_ll_text, freq = corpus_ll$Freq,
           max.words = 100, min.freq = 3, random.order=FALSE, rot.per=0, 
           colors=brewer.pal(8, "Dark2"), scale = c(3, .001))
 ```
-
