@@ -1,1 +1,426 @@
+```{r}
+library(dplyr)
+library(RTextTools)
+library(topicmodels)
+library(tm)
+library(tidytext)
+library(wordcloud)
+```
+
+
+```{r}
+#Initial Data Import and Wrangling
+imdb<- read.csv("C:/Datasets/IMBD/movie_metadata.csv", stringsAsFactors = F)
+imdb$ROI <- round((imdb$gross / imdb$budget), 2)
+imdb <- filter(imdb, title_year > 1995)
+
+
+#The following code creates a factor variabel with 5 levels:
+#the first letter, H denotates above 80th percentile of ROI,
+#L denotates below 20th percentile of ROI.
+#the second letter, H denotates above 70th percentile of IMDB score,
+#L denotates below 30th percentile of IMDB score.
+#Hence 5 levels: HH, HL, LH, LL, and MID for all else in between categories
+  
+
+imdb$category <- as.factor(ifelse(imdb$ROI >= quantile(imdb$ROI, .8, na.rm = T) &
+                          imdb$imdb_score >= quantile(imdb$imdb_score, .7, na.rm = T), "HH",
+                        ifelse(imdb$ROI >= quantile(imdb$ROI, .8, na.rm = T) &
+                                 imdb$imdb_score <= quantile(imdb$imdb_score, .3, na.rm = T), "HL",
+                        ifelse(imdb$ROI <= quantile(imdb$ROI, .2, na.rm = T) &
+                                 imdb$imdb_score >= quantile(imdb$imdb_score, .7, na.rm = T), "LH",
+                        ifelse(imdb$ROI <= quantile(imdb$ROI, .2, na.rm = T) &
+                                 imdb$imdb_score <= quantile(imdb$imdb_score, .3, na.rm = T), "LL", "MID")))))
+
+
+imdb$movie_title <- sub("Â", "", imdb$movie_title) #remove Â from the end of the move titles
+imdb$g_complex <- gsub("\\|", "_", imdb$genres) #subtitute | for _ in genres
+imdb$genres <- gsub("\\|", "_", imdb$genres)    #subtitute | for _ in complex genres
+imdb$genres <- gsub("^([^_]*_[^_]*)_.*$", "\\1", imdb$genres) #eliminate everything after the second _ in genres
+
+```
+```{r}
+#Data Wrangling for Correlation Matrixes
+
+##dummies for category
+for(n in unique(imdb$category)) {
+  imdb[paste(" ", n, sep= "")] <- ifelse(imdb$category == n, 1, 0)
+}
+
+
+##dummies for actor1 
+for(n in unique(imdb$actor_1_name)) {
+  imdb[paste("actor", n, sep= " ")] <- ifelse(imdb$actor_1_name == n, 1, 0)
+}
+
+
+##dummies for director 
+for(n in unique(imdb$director_name)) {
+  imdb[paste("director", n, sep= " ")] <- ifelse(imdb$director_name == n, 1, 0)
+}
+
+
+##dummies for genres
+for(n in unique(imdb$genres)) {
+  imdb[paste("genre", n, sep= " ")] <- ifelse(imdb$genres == n, 1, 0)
+}
+
+##dummies for complex genres
+for(n in unique(imdb$g_complex)) {
+  imdb[paste("g_complex", n, sep= " ")] <- ifelse(imdb$g_complex == n, 1, 0)
+}
+
+
+##reduce variables for correlation matrixes
+imdb_corr <- imdb[, -c(1:30, 35)]
+imdb_corr <- imdb_corr[complete.cases(imdb_corr), ]
+
+#Variable selection for correlation matrixes
+x_directors <- imdb_corr[c(which(grepl("director", colnames(imdb_corr)) == TRUE))]
+x_actors <- imdb_corr[c(which(grepl("actor", colnames(imdb_corr)) == TRUE))]
+x_genres <- imdb_corr[c(which(grepl("genre", colnames(imdb_corr)) == TRUE))]
+x_g_complex <- imdb_corr[c(which(grepl("g_complex", colnames(imdb_corr)) == TRUE))]
+x_g_complex <- x_g_complex[, -1]
+y <- imdb_corr[2:6]
+
+```
+
+```{r}
+#Correlation Matrix for actors
+
+
+##hh
+
+corr_hh_actors <- as.data.frame(round(cor(x_actors, y$` HH`), 2)) #Correlation with category of movie
+corr_hh_actors_p <- rep(0, nrow(corr_hh_actors)) #empty vector to fill with p-values of correlations
+ 
+for(n in 1:ncol(x_actors)) {                    #forloop extracts p-value of correlations  
+  
+  test <- cor.test(x = x_actors[[n]], y = y[[1]])
+  corr_hh_actors_p[n] = test$p.value
+}
+
+corr_hh_actors$p <- round(corr_hh_actors_p, 5)
+corr_hh_actors <- corr_hh_actors[c(which(corr_hh_actors$p <= 0.05)), ]  #keep only significant correlations
+colnames(corr_hh_actors)[1] <- "correlation"
+corr_hh_actors$actor <- rownames(corr_hh_actors)
+corr_hh_actors <- arrange(corr_hh_actors, desc(correlation))
+corr_hh_actors <- corr_hh_actors[, c(3, 1, 2)]
+corr_hh_actors$actor <- gsub("actor", "", corr_hh_actors$actor) #eliminate type of variable index from names
+
+
+##hl
+
+corr_hl_actors <- as.data.frame(round(cor(x_actors, y$` HL`), 2))
+corr_hl_actors_p <- rep(0, nrow(corr_hl_actors))
+
+for(n in 1:ncol(x_actors)) {
+  
+  test <- cor.test(x = x_actors[[n]], y = y[[5]])
+  corr_hl_actors_p[n] = test$p.value
+}
+
+corr_hl_actors$p <- round(corr_hl_actors_p, 5)
+corr_hl_actors <- corr_hl_actors[c(which(corr_hl_actors$p <= 0.05)), ]
+colnames(corr_hl_actors)[1] <- "correlation"
+corr_hl_actors$actor <- rownames(corr_hl_actors)
+corr_hl_actors <- arrange(corr_hl_actors, desc(correlation))
+corr_hl_actors <- corr_hl_actors[, c(3, 1, 2)]
+corr_hl_actors$actor <- gsub("actor", "", corr_hl_actors$actor)
+
+
+##lh
+
+corr_lh_actors <- as.data.frame(round(cor(x_actors, y$` LH`), 2))
+corr_lh_actors_p <- rep(0, nrow(corr_lh_actors))
+
+for(n in 1:ncol(x_actors)) {
+  
+  test <- cor.test(x = x_actors[[n]], y = y[[4]])
+  corr_lh_actors_p[n] = test$p.value
+}
+
+corr_lh_actors$p <- round(corr_lh_actors_p, 5)
+corr_lh_actors <- corr_lh_actors[c(which(corr_lh_actors$p <= 0.05)), ]
+colnames(corr_lh_actors)[1] <- "correlation"
+corr_lh_actors$actor <- rownames(corr_lh_actors)
+corr_lh_actors <- arrange(corr_lh_actors, desc(correlation))
+corr_lh_actors <- corr_lh_actors[-3, c(3, 1, 2)]
+corr_lh_actors$actor <- gsub("actor", "", corr_lh_actors$actor)
+
+
+##ll
+
+corr_ll_actors <- as.data.frame(round(cor(x_actors, y$` LL`), 2))
+corr_ll_actors_p <- rep(0, nrow(corr_ll_actors))
+
+for(n in 1:ncol(x_actors)) {
+  
+  test <- cor.test(x = x_actors[[n]], y = y[[3]])
+  corr_ll_actors_p[n] = test$p.value
+}
+
+corr_ll_actors$p <- round(corr_ll_actors_p, 5)
+corr_ll_actors <- corr_ll_actors[c(which(corr_ll_actors$p <= 0.05)), ]
+colnames(corr_ll_actors)[1] <- "correlation"
+corr_ll_actors$actor <- rownames(corr_ll_actors)
+corr_ll_actors <- arrange(corr_ll_actors, desc(correlation))
+corr_ll_actors <- corr_ll_actors[-3, c(3, 1, 2)]
+corr_ll_actors$actor <- gsub("actor", "", corr_ll_actors$actor)
+```
+
+```{r}
+#Correlation Matrix for directors
+
+
+##hh
+corr_hh_directors <- as.data.frame(round(cor(x_directors, y$` HH`), 2))
+corr_hh_directors_p <- rep(0, nrow(corr_hh_directors))
+
+for(n in 1:ncol(x_directors)) {
+  
+  test <- cor.test(x = x_directors[[n]], y = y[[1]])
+  corr_hh_directors_p[n] = test$p.value
+}
+
+corr_hh_directors$p <- round(corr_hh_directors_p, 5)
+corr_hh_directors <- corr_hh_directors[c(which(corr_hh_directors$p <= 0.05)), ]
+colnames(corr_hh_directors)[1] <- "correlation"
+corr_hh_directors$director <- rownames(corr_hh_directors)
+corr_hh_directors <- arrange(corr_hh_directors, desc(correlation))
+corr_hh_directors <- corr_hh_directors[, c(3, 1, 2)]
+corr_hh_directors$director <- gsub("director", "", corr_hh_directors$director)
+
+
+##hl
+
+corr_hl_directors <- as.data.frame(round(cor(x_directors, y$` HL`), 2))
+corr_hl_directors_p <- rep(0, nrow(corr_hl_directors))
+
+for(n in 1:ncol(x_directors)) {
+  
+  test <- cor.test(x = x_directors[[n]], y = y[[5]])
+  corr_hl_directors_p[n] = test$p.value
+}
+
+corr_hl_directors$p <- round(corr_hl_directors_p, 5)
+corr_hl_directors <- corr_hl_directors[c(which(corr_hl_directors$p <= 0.05)), ]
+colnames(corr_hl_directors)[1] <- "correlation"
+corr_hl_directors$director <- rownames(corr_hl_directors)
+corr_hl_directors <- arrange(corr_hl_directors, desc(correlation))
+corr_hl_directors <- corr_hl_directors[, c(3, 1, 2)]
+corr_hl_directors$director <- gsub("director", "", corr_hl_directors$director)
+
+
+##lh
+
+corr_lh_directors <- as.data.frame(round(cor(x_directors, y$` LH`), 2))
+corr_lh_directors_p <- rep(0, nrow(corr_lh_directors))
+
+for(n in 1:ncol(x_directors)) {
+  
+  test <- cor.test(x = x_directors[[n]], y = y[[4]])
+  corr_lh_directors_p[n] = test$p.value
+}
+
+corr_lh_directors$p <- round(corr_lh_directors_p, 5)
+corr_lh_directors <- corr_lh_directors[c(which(corr_lh_directors$p <= 0.05)), ]
+colnames(corr_lh_directors)[1] <- "correlation"
+corr_lh_directors$director <- rownames(corr_lh_directors)
+corr_lh_directors <- arrange(corr_lh_directors, desc(correlation))
+corr_lh_directors <- corr_lh_directors[, c(3, 1, 2)]
+corr_lh_directors$director <- gsub("director", "", corr_lh_directors$director)
+
+
+##ll
+
+corr_ll_directors <- as.data.frame(round(cor(x_directors, y$` LL`), 2))
+corr_ll_directors_p <- rep(0, nrow(corr_ll_directors))
+
+for(n in 1:ncol(x_directors)) {
+  
+  test <- cor.test(x = x_directors[[n]], y = y[[3]])
+  corr_ll_directors_p[n] = test$p.value
+}
+
+corr_ll_directors$p <- round(corr_ll_directors_p, 5)
+corr_ll_directors <- corr_ll_directors[c(which(corr_ll_directors$p <= 0.05)), ]
+colnames(corr_ll_directors)[1] <- "correlation"
+corr_ll_directors$director <- rownames(corr_ll_directors)
+corr_ll_directors <- arrange(corr_ll_directors, desc(correlation))
+corr_ll_directors <- corr_ll_directors[-3, c(3, 1, 2)]
+corr_ll_directors$director <- gsub("director", "", corr_ll_directors$director)
+```
+
+```{r}
+#Correlation Matrix for genre
+
+
+##hh
+
+corr_hh_genre <- as.data.frame(round(cor(x_genres, y$` HH`), 2))
+corr_hh_genre_p <- rep(0, nrow(corr_hh_genre))
+
+for(n in 1:ncol(x_genres)) {
+  
+  test <- cor.test(x = x_genres[[n]], y = y[[1]])
+  corr_hh_genre_p[n] = test$p.value
+}
+
+corr_hh_genre$p <- round(corr_hh_genre_p, 5)
+corr_hh_genre <- corr_hh_genre[c(which(corr_hh_genre$p <= 0.05)), ]
+colnames(corr_hh_genre)[1] <- "correlation"
+corr_hh_genre$director <- rownames(corr_hh_genre)
+corr_hh_genre <- arrange(corr_hh_genre, desc(correlation))
+corr_hh_genre <- corr_hh_genre[-3, c(3, 1, 2)]
+corr_hh_genre$director <- gsub("genre", "", corr_hh_genre$director)
+
+
+##hl
+
+corr_hl_genre <- as.data.frame(round(cor(x_genres, y$` HL`), 2))
+corr_hl_genre_p <- rep(0, nrow(corr_hl_genre))
+
+for(n in 1:ncol(x_genres)) {
+  
+  test <- cor.test(x = x_genres[[n]], y = y[[5]])
+  corr_hl_genre_p[n] = test$p.value
+}
+
+corr_hl_genre$p <- round(corr_hl_genre_p, 5)
+corr_hl_genre <- corr_hl_genre[c(which(corr_hl_genre$p <= 0.05)), ]
+colnames(corr_hl_genre)[1] <- "correlation"
+corr_hl_genre$director <- rownames(corr_hl_genre)
+corr_hl_genre <- arrange(corr_hl_genre, desc(correlation))
+corr_hl_genre <- corr_hl_genre[-3, c(3, 1, 2)]
+corr_hl_genre$director <- gsub("genre", "", corr_hl_genre$director)
+
+
+##lh
+
+corr_lh_genre <- as.data.frame(round(cor(x_genres, y$` LH`), 2))
+corr_lh_genre_p <- rep(0, nrow(corr_lh_genre))
+
+for(n in 1:ncol(x_genres)) {
+  
+  test <- cor.test(x = x_genres[[n]], y = y[[4]])
+  corr_lh_genre_p[n] = test$p.value
+}
+
+corr_lh_genre$p <- round(corr_lh_genre_p, 5)
+corr_lh_genre <- corr_lh_genre[c(which(corr_lh_genre$p <= 0.05)), ]
+colnames(corr_lh_genre)[1] <- "correlation"
+corr_lh_genre$director <- rownames(corr_lh_genre)
+corr_lh_genre <- arrange(corr_lh_genre, desc(correlation))
+corr_lh_genre <- corr_lh_genre[-3, c(3, 1, 2)]
+corr_lh_genre$director <- gsub("genre", "", corr_lh_genre$director)
+
+
+##ll
+
+corr_ll_genre <- as.data.frame(round(cor(x_genres, y$` LL`), 2))
+corr_ll_genre_p <- rep(0, nrow(corr_ll_genre))
+
+for(n in 1:ncol(x_genres)) {
+  
+  test <- cor.test(x = x_genres[[n]], y = y[[3]])
+  corr_ll_genre_p[n] = test$p.value
+}
+
+corr_ll_genre$p <- round(corr_ll_genre_p, 5)
+corr_ll_genre <- corr_ll_genre[c(which(corr_ll_genre$p <= 0.05)), ]
+colnames(corr_ll_genre)[1] <- "correlation"
+corr_ll_genre$director <- rownames(corr_ll_genre)
+corr_ll_genre <- arrange(corr_ll_genre, desc(correlation))
+corr_ll_genre <- corr_ll_genre[-3, c(3, 1, 2)]
+corr_ll_genre$director <- gsub("genre", "", corr_ll_genre$director)
+```
+
+```{r}
+#Correlation Matrix for genre_complex
+
+
+##hh
+
+corr_hh_g_complex <- as.data.frame(round(cor(x_g_complex, y$` HH`), 2))
+corr_hh_g_complex_p <- rep(0, nrow(corr_hh_g_complex))
+
+for(n in 1:ncol(x_g_complex)) {
+  
+  test <- cor.test(x = x_g_complex[[n]], y = y[[1]])
+  corr_hh_g_complex_p[n] = test$p.value
+}
+
+corr_hh_g_complex$p <- round(corr_hh_g_complex_p, 5)
+corr_hh_g_complex <- corr_hh_g_complex[c(which(corr_hh_g_complex$p <= 0.05)), ]
+colnames(corr_hh_g_complex)[1] <- "correlation"
+corr_hh_g_complex$director <- rownames(corr_hh_g_complex)
+corr_hh_g_complex <- arrange(corr_hh_g_complex, desc(correlation))
+corr_hh_g_complex <- corr_hh_g_complex[-3, c(3, 1, 2)]
+corr_hh_g_complex$director <- gsub("g_complex", "", corr_hh_g_complex$director)
+
+
+##hl
+
+corr_hl_g_complex <- as.data.frame(round(cor(x_g_complex, y$` HL`), 2))
+corr_hl_g_complex_p <- rep(0, nrow(corr_hl_g_complex))
+
+for(n in 1:ncol(x_g_complex)) {
+  
+  test <- cor.test(x = x_g_complex[[n]], y = y[[5]])
+  corr_hl_g_complex_p[n] = test$p.value
+}
+
+corr_hl_g_complex$p <- round(corr_hl_g_complex_p, 5)
+corr_hl_g_complex <- corr_hl_g_complex[c(which(corr_hl_g_complex$p <= 0.05)), ]
+colnames(corr_hl_g_complex)[1] <- "correlation"
+corr_hl_g_complex$director <- rownames(corr_hl_g_complex)
+corr_hl_g_complex <- arrange(corr_hl_g_complex, desc(correlation))
+corr_hl_g_complex <- corr_hl_g_complex[-3, c(3, 1, 2)]
+corr_hl_g_complex$director <- gsub("g_complex", "", corr_hl_g_complex$director)
+
+
+##lh
+
+corr_lh_g_complex <- as.data.frame(round(cor(x_g_complex, y$` LH`), 2))
+corr_lh_g_complex_p <- rep(0, nrow(corr_lh_g_complex))
+
+for(n in 1:ncol(x_g_complex)) {
+  
+  test <- cor.test(x = x_g_complex[[n]], y = y[[4]])
+  corr_lh_g_complex_p[n] = test$p.value
+}
+
+corr_lh_g_complex$p <- round(corr_lh_g_complex_p, 5)
+corr_lh_g_complex <- corr_lh_g_complex[c(which(corr_lh_g_complex$p <= 0.05)), ]
+colnames(corr_lh_g_complex)[1] <- "correlation"
+corr_lh_g_complex$director <- rownames(corr_lh_g_complex)
+corr_lh_g_complex <- arrange(corr_lh_g_complex, desc(correlation))
+corr_lh_g_complex <- corr_lh_g_complex[-3, c(3, 1, 2)]
+corr_lh_g_complex$director <- gsub("g_complex", "", corr_lh_g_complex$director)
+
+
+##ll
+
+corr_ll_g_complex <- as.data.frame(round(cor(x_g_complex, y$` LL`), 2))
+corr_ll_g_complex_p <- rep(0, nrow(corr_ll_g_complex))
+
+for(n in 1:ncol(x_g_complex)) {
+  
+  test <- cor.test(x = x_g_complex[[n]], y = y[[3]])
+  corr_ll_g_complex_p[n] = test$p.value
+}
+
+corr_ll_g_complex$p <- round(corr_ll_g_complex_p, 5)
+corr_ll_g_complex <- corr_ll_g_complex[c(which(corr_ll_g_complex$p <= 0.05)), ]
+colnames(corr_ll_g_complex)[1] <- "correlation"
+corr_ll_g_complex$director <- rownames(corr_ll_g_complex)
+corr_ll_g_complex <- arrange(corr_ll_g_complex, desc(correlation))
+corr_ll_g_complex <- corr_ll_g_complex[-3, c(3, 1, 2)]
+corr_ll_g_complex$director <- gsub("g_complex", "", corr_ll_g_complex$director)
+
+```
+
+
+
 
