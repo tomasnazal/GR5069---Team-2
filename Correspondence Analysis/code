@@ -1,77 +1,54 @@
-```{r}
-rm(list=ls()) #Clear the enviornment
-```
-
-## Upload the data:
-```{r}
-# Upload Data set
-library(readr)
-imdb <- read_csv("C:/Users/sooyo/Desktop/movie_metadata.csv")
-
-imdb <- na.omit(imdb)
-```
-
-#Code for data wrangling and others
-
-```{r}
-#Libraries Used
-library(dplyr)
-
-#CODE
-imdb$ROI <- round((imdb$gross / imdb$budget), 2)
-imdb <- filter(imdb, title_year > 1995)
-
-
-#The following code creates a factor variable with 5 levels:
-#the first letter, H denotates above 80th percentile of ROI,
-#L denotates below 20th percentile of ROI.
-#the second letter, H denotates above 70th percentile of IMDB score,
-#L denotates below 30th percentile of IMDB score.
-#Hence 5 levels: HH, HL, LH, LL, and MID for all else in between categories
-
-
-imdb$category <- as.factor(ifelse(imdb$ROI >= quantile(imdb$ROI, .8, na.rm = T) &
-                          imdb$imdb_score >= quantile(imdb$imdb_score, .7, na.rm = T), "HH",
-                        ifelse(imdb$ROI >= quantile(imdb$ROI, .8, na.rm = T) &
-                                 imdb$imdb_score <= quantile(imdb$imdb_score, .3, na.rm = T), "HL",
-                        ifelse(imdb$ROI <= quantile(imdb$ROI, .2, na.rm = T) &
-                                 imdb$imdb_score >= quantile(imdb$imdb_score, .7, na.rm = T), "LH",
-                        ifelse(imdb$ROI <= quantile(imdb$ROI, .2, na.rm = T) &
-                                 imdb$imdb_score <= quantile(imdb$imdb_score, .3, na.rm = T), "LL", "MID")))))
-table(imdb$category)
-```
-
-
 ## Correspondence analysis:
+Correspondence analysis provides a graphic method of exploring the relationship between variables in a contingency table. The cross-tabulation of categorical data is perhaps the most commonly encountered and simple for of analysis in research.
+
+The default plot of CA is a “symmetric” plot in which both rows and columns are in principal coordinates. In this situation, it’s not possible to interpret the distance between row points and column points. To overcome this problem, the simplest way is to make an asymmetric plot. This means that, the column profiles must be presented in row space or vice-versa. 
 ```{r}
-## Correspondence analysis provides a graphic method of exploring the relationship between variables in a contingency table. 
-
-# The cross-tabulation of categorical data is perhaps the most commonly encountered and simple for of analysis in research
-
 #Libraries Used
 library(ca)
-library("FactoMineR")
-library("factoextra")
+library(FactoMineR)
+library(factoextra)
 
-# Correspondence analysis I
-mytable1 <- with(imdb, table(actor_1_name, ROI))
-prop.table(mytable1, 1) # row percentages
-prop.table (mytable1, 2) # column percentages
-fit1 <- ca(mytable1)
-print(fit1) # basic results
-summary(fit1) # extended results
-plot(fit1) # symmetric map
-plot(fit1, mass = TRUE, contrib = "absolute", map =
-  	"rowgreen", arrows = c(FALSE, TRUE)) # asymmetric map
+# Relationsip between Main Actor (actor_1_name) and movie categories (based on the movie's critic score and return of investment (ROI))
 
-# Correspondence analysis II
-mytable2 <- with(imdb, table(actor_1_name, category))
-prop.table(mytable2, 1) # row percentages
-prop.table (mytable2, 2) # column percentages
-fit2 <- ca(mytable2)
-print(fit2) # basic results
-summary(fit2) # extended results
-plot(fit2) # symmetric map
-plot(fit2, mass = TRUE, contrib = "absolute", map =
-  	"rowgreen", arrows = c(FALSE, TRUE)) # asymmetric map
+mytable1 <- with(imdb, table(actor_1_name, category)) # Create a 2 way table
+prop.table(mytable1, 1) # Row percentages
+prop.table(mytable1, 2) # Column percentages
+ca_imdb <- ca(mytable1)
+ca_imdb
+print(ca_imdb) # Basic results 
+summary(ca_imdb) # Extended results 
+fviz_ca_biplot(ca_imdb) # Symetric Biplot of rows and columns
+
+# Select the top 135 contributing rows
+# And the top 4 columns
+fviz_ca_biplot(ca_imdb,
+               select.row = list(contrib = 130),
+               select.col = list(contrib = 4) )
+
+
+# Using the cos2 or the contributions = the quality of the rows on the factor map; If a row item is well represented by two dimensions, the sum of the cos2 is closed to one.
+# change axis limits by specifying the min and max (closer look at the HH)
+# The row variables with the larger value, contribute the most to the definition of the dimensions.
+fviz_ca_row(ca_imdb, col.row="cos2") + xlim(-.1, .25) + ylim (-.25, .25)
+
+library("corrplot")
+row <- get_ca_row(ca_imdb)
+row
+corrplot(row$contrib,is.corr=FALSE)
+
+# top contributing rows can be displayed as follow:
+fviz_contrib(ca_imdb, choice = "row", axes = 1:2, top = 15)
+
+# Cos2 : The quality of representation of rows
+head(row$cos2)
+fviz_cos2(ca_imdb, choice = "row", axes = 1:2, top = 25)
+
+# Significance of the association between rows and columns
+# Is there a significant dependency between the rows and columns?
+# Inspect the significance: Using the  trace -- the the total inertia of the table (i.e, the sum of the eigenvalues). 
+
+eig <- get_eigenvalue(ca_imdb)
+trace <- sum(eig$eigenvalue) 
+cor.coef <- sqrt(trace)
+cor.coef # 1.402442 indicates a strong association between row and column variables (as a rule of thumb 0.2 is the threshold above which the correlation can be considered as important)
 ```
