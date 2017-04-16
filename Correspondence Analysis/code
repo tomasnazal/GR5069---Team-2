@@ -19,7 +19,7 @@ ca_imdb1
 print(ca_imdb1) # Basic results 
 summary(ca_imdb1) # Extended results
 fviz_ca_biplot(ca_imdb1) # Symetric Biplot of rows and columns
-fviz_ca_col(ca_imdb1) # Only show columns 
+fviz_ca_col(ca_imdb1, col.col = "dark violet") + theme_minimal() + labs(title = "Column Points - CA Factor Map: Main Actor Names") # Only show columns 
 ```
 
 # Correspondence Analysis II: Director Name and Movie Categories
@@ -38,5 +38,5 @@ ca_imdb2
 print(ca_imdb2) # Basic results 
 summary(ca_imdb2) # Extended results
 fviz_ca_biplot(ca_imdb2) # Symetric Biplot of rows and columns
-fviz_ca_col(ca_imdb2) # Only show columns 
+fviz_ca_col(ca_imdb2, col.col = "dark orange") + theme_minimal() + labs(title = "Column Points - CA Factor Map: Director Names") # Only show columns 
 ```
