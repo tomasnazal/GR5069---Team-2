@@ -1,1 +1,55 @@
-Hello world
+# Principal component analysis
+```{r}
+# Clean text
+
+imdb_txt <- imdb[, c("director_name", "actor_1_name", "plot_keywords", "genres", "category")]
+imdb_txt$director_name <- gsub(" ", "_", imdb_txt$director_name)
+imdb_txt$actor_1_name <- gsub(" ", "_", imdb_txt$actor_1_name)
+imdb_txt$plot_keywords <- gsub(" ", "_", imdb_txt$plot_keywords)
+imdb_txt$plot_keywords <- gsub("\\|", " ", imdb_txt$plot_keywords)
+imdb_txt$genres <- gsub("\\|", "_", imdb_txt$genres)
+imdb_txt$genres <- gsub("^([^_]*_[^_]*)_.*$", "\\1", imdb_txt$genres)
+
+##dummies for category
+for(n in unique(imdb$category)) {
+  imdb[paste(" ", n, sep= "")] <- ifelse(imdb$category == n, 1, 0)
+}
+
+
+##dummies for actor1 
+for(n in unique(imdb$actor_1_name)) {
+  imdb[paste("actor", n, sep= " ")] <- ifelse(imdb$actor_1_name == n, 1, 0)
+}
+
+
+##dummies for director 
+for(n in unique(imdb$director_name)) {
+  imdb[paste("director", n, sep= " ")] <- ifelse(imdb$director_name == n, 1, 0)
+}
+
+
+##dummies for genres
+for(n in unique(imdb$genres)) {
+  imdb[paste("genre", n, sep= " ")] <- ifelse(imdb$genres == n, 1, 0)
+}
+
+## subset IMDB
+imdb_LL <- imdb [imdb$category == "LL"]
+imdb_HL <- imdb [imdb$category == "HL"]
+imdb_LH <- imdb [imdb$category == "LH"]
+imdb_HH <- imdb [imdb$category == "HH"]
+
+
+##pcr
+library(pcaPP)
+pr_out <- prcomp(imdb_LL, scale = TRUE)
+names(pr_out)
+
+
+pca$rotation 
+
+#use dplyr to arrange des row (alphbetical)
+
+#cosine similarity between 4 vectors 
+
+```
