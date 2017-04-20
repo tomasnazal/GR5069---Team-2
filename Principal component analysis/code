@@ -71,4 +71,10 @@ pr_out_LH$rotation
 pr_out_HH <- prcomp(imdb_HH)
 names(pr_out_HH)
 pr_out_HH$rotation
+
+# Write CSV in R
+write.csv(pr_out_LL$rotation, file = "LL Rotation.csv")
+write.csv(pr_out_HL$rotation, file = "HL Rotation.csv")
+write.csv(pr_out_LH$rotation, file = "LH Rotation.csv")
+write.csv(pr_out_HH$rotation, file = "HH Rotation.csv")
 ```
