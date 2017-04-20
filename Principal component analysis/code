@@ -1,7 +1,6 @@
 # Principal component analysis
 ```{r}
 # Clean text
-
 imdb_txt <- imdb[, c("director_name", "actor_1_name", "plot_keywords", "genres", "category")]
 imdb_txt$director_name <- gsub(" ", "_", imdb_txt$director_name)
 imdb_txt$actor_1_name <- gsub(" ", "_", imdb_txt$actor_1_name)
@@ -15,41 +14,61 @@ for(n in unique(imdb$category)) {
   imdb[paste(" ", n, sep= "")] <- ifelse(imdb$category == n, 1, 0)
 }
 
+##imdb_dummies
+imdb_dummies <- imdb
+imdb_dummies[,] <- NA
+imdb_dummies[, -c(1:29, 31:35)]
 
-##dummies for actor1 
+##dummies for actor1
 for(n in unique(imdb$actor_1_name)) {
-  imdb[paste("actor", n, sep= " ")] <- ifelse(imdb$actor_1_name == n, 1, 0)
+  imdb_dummies[paste("actor", n, sep= " ")] <- ifelse(imdb$actor_1_name == n, 1, 0)
 }
-
 
 ##dummies for director 
 for(n in unique(imdb$director_name)) {
-  imdb[paste("director", n, sep= " ")] <- ifelse(imdb$director_name == n, 1, 0)
+  imdb_dummies[paste("director", n, sep= " ")] <- ifelse(imdb$director_name == n, 1, 0)
 }
-
 
 ##dummies for genres
 for(n in unique(imdb$genres)) {
-  imdb[paste("genre", n, sep= " ")] <- ifelse(imdb$genres == n, 1, 0)
+  imdb_dummies[paste("genre", n, sep= " ")] <- ifelse(imdb$genres == n, 1, 0)
 }
 
+imdb_dummies <- imdb_dummies[, colSums(is.na(imdb_dummies)) != nrow(imdb_dummies)]
+imdb_dummies$category <- imdb$category
+
 ## subset IMDB
-imdb_LL <- imdb [imdb$category == "LL"]
-imdb_HL <- imdb [imdb$category == "HL"]
-imdb_LH <- imdb [imdb$category == "LH"]
-imdb_HH <- imdb [imdb$category == "HH"]
+imdb_LL <- imdb_dummies [imdb_dummies$category == "LL", ]
+imdb_HL <- imdb_dummies [imdb_dummies$category == "HL", ]
+imdb_LH <- imdb_dummies [imdb_dummies$category == "LH", ]
+imdb_HH <- imdb_dummies [imdb_dummies$category == "HH", ]
 
 
-##pcr
+imdb_LL$category <- NULL
+imdb_HL$category <- NULL
+imdb_LH$category <- NULL
+imdb_HH$category <- NULL
+
+##pca
 library(pcaPP)
-pr_out <- prcomp(imdb_LL, scale = TRUE)
-names(pr_out)
 
+##pca for LL
+pr_out_LL <- prcomp(imdb_LL)
+names(pr_out_LL)
+pr_out_LL$rotation 
 
-pca$rotation 
+##pca for HL
+pr_out_HL <- prcomp(imdb_HL)
+names(pr_out_HL)
+pr_out_HL$rotation
 
-#use dplyr to arrange des row (alphbetical)
+#pca for LH
+pr_out_LH <- prcomp(imdb_LH)
+names(pr_out_LH)
+pr_out_LH$rotation
 
-#cosine similarity between 4 vectors 
-
+#pca for HH
+pr_out_HH <- prcomp(imdb_HH)
+names(pr_out_HH)
+pr_out_HH$rotation
 ```
