@@ -1,0 +1,63 @@
+library(dplyr)
+library(ggplot2)
+
+imdb <- read.csv("/Users/elka/Desktop/Applied data science/project/movie_metadata.csv")
+imdb <- filter(imdb, title_year > 1995)
+
+imdb$ROI <- round((imdb$gross / imdb$budget), 2)
+
+imdb <- filter(imdb, ROI< 2000)
+
+## Extract Numeric variables
+nums <- sapply(imdb, is.numeric)
+imdb_num <- na.omit(imdb[ ,nums])
+
+## Explore relationship between ROI adn IMDB Score within each category
+total_lm <- lm(ROI ~ . - gross - budget, data = imdb_num)
+HH_lm <- lm(ROI ~ . - gross - budget, data = subset(imdb_num, ROI >= quantile(imdb$ROI, .8, na.rm = T) & imdb_score >= quantile(imdb$imdb_score, .7, na.rm = T)))
+HL_lm <- lm(ROI ~ . - gross - budget, data = subset(imdb_num, ROI >= quantile(imdb$ROI, .8, na.rm = T) & imdb_score <= quantile(imdb$imdb_score, .3, na.rm = T)))
+LH_lm <- lm(ROI ~ . - gross - budget, data = subset(imdb_num, ROI <= quantile(imdb$ROI, .2, na.rm = T) & imdb_score >= quantile(imdb$imdb_score, .7, na.rm = T)))
+LL_lm <- lm(ROI ~ . - gross - budget, data = subset(imdb_num, ROI <= quantile(imdb$ROI, .2, na.rm = T) & imdb_score <= quantile(imdb$imdb_score, .3, na.rm = T)))
+
+stargazer::stargazer(HH_lm, HL_lm, LH_lm, LL_lm,
+                     column.labels=c("HH", "HL", "LH", "LL"),
+                     type = "text", out="imdb.txt")
+
+
+total <- summary(total_lm) %>% coefficients %>% as.data.frame() %>% subset(, c(1:2, 4))
+total$ub <- total$Estimate + total$`Std. Error`
+total$lb <- total$Estimate - total$`Std. Error`
+
+total$`Pr(>|t|)` <- ifelse(total$`Pr(>|t|)`  <= 0.001, "***", 
+                  ifelse(total$`Pr(>|t|)`   <= 0.01, "**",
+                  ifelse(total$`Pr(>|t|)`  <= 0.1, "*", "Not Significant")))
+
+total$ Pr(>|z|)  <- ordered(total$`Pr(>|t|)`  , levels = c("***", "**", "*", "Not Significant"))
+total$variables <- rownames(total)
+total$variables <- as.factor(as.character(total$variables))
+total <- arrange(total, desc(`Pr(>|t|)`   ))
+total$variables <- ordered(total$variables, levels = c(unique(as.character(total$variables))))
+total <- total[c(2:14), ] ## remove intercept 
+
+## plot regression result
+
+total.plot <- ggplot() +
+  geom_point(aes(x = variables, y = Estimate, color = `Pr(>|t|)`), data = total) + 
+  scale_colour_discrete(h=c(170,230), l = seq(0, 80, length.out = 5)) + 
+  geom_errorbar(aes(x = variables, y = Estimate,color = `Pr(>|t|)`, ymin = lb, ymax = ub),data = total, width = 0.1) + 
+  ggtitle("Coefficients of OLS Regression") +
+  labs(x = "", y = "Estimate") + 
+  theme(panel.background = element_blank(),
+  panel.grid.major = element_line(color = "#d8d8d8", linetype = "dotted"), 
+  panel.grid.major.x = element_blank(),
+  plot.title = element_text(hjust = 0.5),
+  axis.line.y = element_blank(),
+  axis.ticks.y = element_blank(), 
+  axis.text.y = element_text(hjust = 1), 
+  legend.key = element_blank()) +
+  geom_hline(aes(yintercept = 0), color = "#d8d8d8", linetype = "longdash") + 
+  coord_flip()
+total.plot
+
+
+
